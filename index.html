@@ -131,6 +131,20 @@ document.addEventListener('DOMContentLoaded', async function() {
       template = template.slice(0, i) + resourceScript + template.slice(i);
     }
 
+    // The exported page keeps the static landing HTML inside <x-dc> and
+    // stores document styles in a pseudo <helmet>. Rendering it through the
+    // DC runtime corrupts escaped whitespace and strips many inline styles in
+    // the standalone preview, so unwrap it into ordinary HTML before parsing.
+    const helmetMatch = template.match(/<x-dc>\s*<helmet>([\s\S]*?)<\/helmet>/i);
+    if (helmetMatch) {
+      const headClose = template.match(/<\/head>/i);
+      if (headClose) {
+        template = template.slice(0, headClose.index) + helmetMatch[1] + template.slice(headClose.index);
+      }
+      template = template.replace(helmetMatch[0], '');
+      template = template.replace(/<\/x-dc>/gi, '');
+    }
+
     // Parse the template and swap the root element. Scripts inserted via
     // DOMParser/replaceWith are inert per spec — re-create each with
     // createElement so they execute, awaiting onload for src scripts to
