@@ -42,13 +42,21 @@ document.addEventListener('DOMContentLoaded', async function() {
       Array.from(document.querySelectorAll('section')).find((section) => section.innerText.includes('Продукт в действии'));
     if (!demoSection) return;
 
-    const phone = Array.from(demoSection.querySelectorAll('div'))
+    const phoneHost = Array.from(demoSection.querySelectorAll('div'))
       .filter((node) => {
         const text = node.innerText || '';
         return text.includes('Где') && text.includes('Анкета') && text.includes('История') && text.includes('Шаг 1');
       })
       .sort((a, b) => (a.innerText || '').length - (b.innerText || '').length)[0];
-    if (!phone) return;
+    if (!phoneHost) return;
+
+    const phone = document.createElement('div');
+    phone.style.cssText = 'width:min(100%,360px);min-height:520px;background:#fff;border:1px solid oklch(88% 0.008 235);border-radius:28px;overflow:hidden;box-shadow:0 20px 70px oklch(25% 0.02 250 / 0.13);';
+    phoneHost.replaceChildren(phone);
+    if (phoneHost !== phone && !/flex|grid/.test(getComputedStyle(phoneHost).display)) {
+      phoneHost.style.display = 'flex';
+      phoneHost.style.justifyContent = 'center';
+    }
 
     const questions = [
       { key: 'area', step: 'Шаг 1 из 3', title: 'Где именно беспокоит?', help: 'Говорите как удобно — без медицинских терминов.', options: ['Живот / пищеварение', 'Голова', 'Грудь / сердце', 'Спина / суставы', 'Кожа'] },
