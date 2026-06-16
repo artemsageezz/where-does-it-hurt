@@ -37,6 +37,139 @@ document.addEventListener('DOMContentLoaded', async function() {
   const loading = document.getElementById('__bundler_loading');
   function setStatus(msg) { if (loading) loading.textContent = msg; }
 
+  function hydrateLandingDemo() {
+    const demoSection = document.getElementById('demo') ||
+      Array.from(document.querySelectorAll('section')).find((section) => section.innerText.includes('Продукт в действии'));
+    if (!demoSection) return;
+
+    const phone = Array.from(demoSection.querySelectorAll('div'))
+      .filter((node) => {
+        const text = node.innerText || '';
+        return text.includes('Где') && text.includes('Анкета') && text.includes('История') && text.includes('Шаг 1');
+      })
+      .sort((a, b) => (a.innerText || '').length - (b.innerText || '').length)[0];
+    if (!phone) return;
+
+    const questions = [
+      { key: 'area', step: 'Шаг 1 из 3', title: 'Где именно беспокоит?', help: 'Говорите как удобно — без медицинских терминов.', options: ['Живот / пищеварение', 'Голова', 'Грудь / сердце', 'Спина / суставы', 'Кожа'] },
+      { key: 'since', step: 'Шаг 2 из 3', title: 'Как давно это началось?', help: 'Это помогает оценить срочность.', options: ['Сегодня впервые', '2-3 дня', 'Больше недели', 'Месяцами, периодически'] },
+      { key: 'flag', step: 'Шаг 3 из 3', title: 'Что беспокоит больше всего?', help: 'Мы честно подсветим, если стоит поторопиться.', options: ['Сильная резкая боль', 'Поднялась температура', 'Просто непонятно, к кому идти', 'Мешает работать'] },
+    ];
+    const routes = {
+      'Живот / пищеварение': { spec: 'Гастроэнтеролог', analyses: ['Общий анализ крови', 'Биохимия крови', 'УЗИ брюшной полости', 'Копрограмма'] },
+      'Голова': { spec: 'Невролог', analyses: ['Общий анализ крови', 'Контроль артериального давления', 'Консультация офтальмолога'] },
+      'Грудь / сердце': { spec: 'Кардиолог', analyses: ['ЭКГ', 'Общий анализ крови', 'Липидный профиль'] },
+      'Спина / суставы': { spec: 'Невролог / ортопед', analyses: ['Рентген', 'Общий анализ крови', 'Витамин D'] },
+      'Кожа': { spec: 'Дерматолог', analyses: ['Общий анализ крови', 'Аллергопанель', 'Соскоб'] },
+    };
+    const state = { step: 0, answers: {}, view: 'survey', booked: false };
+    const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    const buttonStyle = 'padding:12px;border-radius:999px;font-size:13.5px;font-weight:700;text-align:center;cursor:pointer;';
+    const tabStyle = (active) => `flex:1;text-align:center;padding:9px 12px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;${active ? 'background:#fff;color:oklch(23% 0.02 250);box-shadow:0 1px 5px oklch(25% 0.02 250 / 0.08);' : 'color:oklch(56% 0.012 245);'}`;
+
+    function route() {
+      return routes[state.answers.area] || routes['Живот / пищеварение'];
+    }
+
+    function renderSurvey() {
+      const q = questions[state.step];
+      const selected = state.answers[q.key];
+      return `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <span style="font-size:11.5px;font-weight:700;color:oklch(55% 0.13 245);">${q.step}</span>
+        </div>
+        <div style="height:4px;background:oklch(92% 0.008 235);border-radius:3px;overflow:hidden;margin-bottom:18px;">
+          <div style="width:${((state.step + 1) / questions.length) * 100}%;height:100%;background:oklch(55% 0.13 245);border-radius:3px;"></div>
+        </div>
+        <p style="font-size:15.5px;font-weight:700;margin:0 0 4px;letter-spacing:-0.01em;">${q.title}</p>
+        <p style="font-size:12.5px;color:oklch(58% 0.012 245);margin:0 0 16px;">${q.help}</p>
+        <div style="display:flex;flex-direction:column;gap:9px;">
+          ${q.options.map((label) => `
+            <button data-old-demo-pick="${escapeHtml(label)}" style="text-align:left;border:0;display:flex;align-items:center;gap:11px;padding:13px 16px;border-radius:14px;font-size:14px;cursor:pointer;line-height:1.3;${selected === label ? 'background:oklch(94% 0.03 245);color:oklch(35% 0.11 245);font-weight:700;' : 'background:oklch(97% 0.006 235);color:oklch(34% 0.018 245);'}">
+              <span style="width:8px;height:8px;border-radius:50%;background:${selected === label ? 'oklch(55% 0.13 245)' : 'oklch(82% 0.012 245)'};"></span>${escapeHtml(label)}
+            </button>
+          `).join('')}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:18px;">
+          ${state.step > 0 ? `<button data-old-demo-back style="padding:12px 16px;border-radius:999px;border:1.5px solid oklch(89% 0.008 235);background:#fff;font-size:13px;font-weight:700;color:oklch(45% 0.015 245);cursor:pointer;">←</button>` : ''}
+          <button data-old-demo-next style="border:0;${buttonStyle}flex:1;background:${selected ? 'oklch(55% 0.13 245)' : 'oklch(91% 0.008 235)'};color:${selected ? '#fff' : 'oklch(58% 0.012 245)'};">${state.step === questions.length - 1 ? 'Собрать маршрут →' : 'Следующий вопрос →'}</button>
+        </div>
+      `;
+    }
+
+    function renderResult() {
+      const currentRoute = route();
+      const urgent = ['Сильная резкая боль', 'Поднялась температура'].includes(state.answers.flag);
+      return `
+        <div style="display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;background:oklch(95% 0.04 165);color:oklch(42% 0.1 165);font-size:11.5px;font-weight:700;margin-bottom:16px;">✓ Ваш маршрут готов</div>
+        <div style="padding:14px 16px;background:oklch(94% 0.04 245);border-radius:14px;margin-bottom:10px;">
+          <div style="font-size:11.5px;font-weight:700;color:oklch(45% 0.1 245);margin-bottom:3px;">Рекомендован специалист</div>
+          <div style="font-size:18px;font-weight:800;letter-spacing:-0.01em;">${currentRoute.spec}</div>
+        </div>
+        <div style="padding:12px 16px;border-radius:14px;margin-bottom:14px;background:${urgent ? 'oklch(96% 0.035 35)' : 'oklch(96% 0.018 145)'};color:${urgent ? 'oklch(43% 0.12 35)' : 'oklch(37% 0.09 145)'};">
+          <div style="font-size:11px;font-weight:700;opacity:.8;margin-bottom:2px;">Срочность · ${urgent ? 'не откладывать' : 'планово'}</div>
+          <div style="font-size:14px;font-weight:700;">${urgent ? 'Лучше записаться в ближайшие 24 часа.' : 'Можно выбрать удобный слот в ближайшие дни.'}</div>
+        </div>
+        <p style="font-size:12.5px;font-weight:700;color:oklch(40% 0.015 245);margin:0 0 8px;">Сдайте заранее — сэкономит визит:</p>
+        <div style="display:flex;flex-direction:column;">
+          ${currentRoute.analyses.slice(0, 4).map((name) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid oklch(94% 0.006 235);font-size:13px;color:oklch(40% 0.015 245);"><span style="width:16px;height:16px;border-radius:5px;background:oklch(55% 0.13 245);color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✓</span>${escapeHtml(name)}</div>`).join('')}
+        </div>
+        ${state.booked ? `<div style="margin-top:16px;padding:12px;border-radius:14px;background:oklch(95% 0.04 165);color:oklch(40% 0.1 165);font-size:12.5px;font-weight:700;text-align:center;">✓ Заявка отправлена · подберём слот и клинику</div>` : `<button data-old-demo-book style="border:0;margin-top:16px;${buttonStyle}width:100%;background:oklch(55% 0.13 245);color:#fff;">Записаться к врачу →</button>`}
+        <button data-old-demo-reset style="margin-top:8px;padding:11px;border-radius:999px;border:1.5px solid oklch(89% 0.008 235);background:#fff;color:oklch(48% 0.015 245);font-size:12.5px;font-weight:700;text-align:center;cursor:pointer;width:100%;">Пройти заново</button>
+      `;
+    }
+
+    function renderHistory() {
+      return `
+        <p style="font-size:13px;color:oklch(55% 0.012 245);margin:0 0 14px;">Распознавание вместо запоминания: все обращения и маршруты под рукой.</p>
+        ${[
+          ['Горло и слабость', 'Наблюдение 48 часов · закрыто'],
+          ['Боль в животе', 'Гастроэнтеролог · анализы заранее'],
+          ['Головная боль', 'В прогрессе · выбрать слот'],
+        ].map(([title, meta]) => `<div style="padding:13px 14px;border:1px solid oklch(91% 0.008 235);border-radius:14px;margin-bottom:9px;background:#fff;"><div style="font-size:13.5px;font-weight:800;color:oklch(28% 0.018 245);">${title}</div><div style="font-size:12px;color:oklch(57% 0.012 245);margin-top:2px;">${meta}</div></div>`).join('')}
+      `;
+    }
+
+    function render() {
+      phone.innerHTML = `
+        <div style="padding:20px;border-bottom:1px solid oklch(92% 0.006 235);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div style="font-family:'Newsreader',serif;font-size:18px;font-weight:500;">Где&nbsp;болит<span style="color:oklch(55% 0.13 245);">?</span></div>
+            <div style="font-size:11px;color:oklch(60% 0.012 245);">демо</div>
+          </div>
+          <div style="display:flex;gap:4px;padding:4px;background:oklch(96% 0.006 235);border-radius:11px;margin-bottom:0;">
+            <button data-old-demo-view="survey" style="border:0;${tabStyle(state.view !== 'history')}">Анкета</button>
+            <button data-old-demo-view="history" style="border:0;${tabStyle(state.view === 'history')}">История</button>
+          </div>
+        </div>
+        <div style="padding:20px;min-height:340px;">
+          ${state.view === 'history' ? renderHistory() : state.view === 'result' ? renderResult() : renderSurvey()}
+        </div>
+      `;
+    }
+
+    phone.addEventListener('click', (event) => {
+      const target = event.target.closest('button');
+      if (!target) return;
+      const view = target.dataset.oldDemoView;
+      if (view) state.view = view;
+      if (target.dataset.oldDemoPick) state.answers[questions[state.step].key] = target.dataset.oldDemoPick;
+      if (target.hasAttribute('data-old-demo-next') && state.answers[questions[state.step].key]) {
+        state.view = state.step < questions.length - 1 ? 'survey' : 'result';
+        if (state.step < questions.length - 1) state.step += 1;
+      }
+      if (target.hasAttribute('data-old-demo-back')) state.step = Math.max(0, state.step - 1);
+      if (target.hasAttribute('data-old-demo-reset')) {
+        state.step = 0; state.view = 'survey'; state.booked = false;
+        state.answers = {};
+      }
+      if (target.hasAttribute('data-old-demo-book')) state.booked = true;
+      render();
+    });
+
+    render();
+  }
+
   // Error sink persists across replaceWith since it's on window, not the DOM.
   window.addEventListener('error', function(e) {
     var p = document.body || document.documentElement;
@@ -145,6 +278,29 @@ document.addEventListener('DOMContentLoaded', async function() {
       template = template.replace(/<\/x-dc>/gi, '');
     }
 
+    template = template
+      .replace(/\s+onclick="\{\{[^"]+\}\}"/g, '')
+      .replace(/<sc-if[^>]*value="\{\{ isResult \}\}"[\s\S]*?<\/sc-if>/gi, '')
+      .replace(/<sc-if[^>]*value="\{\{ isHistory \}\}"[\s\S]*?<\/sc-if>/gi, '')
+      .replace(/<sc-if[^>]*value="\{\{ booked \}\}"[\s\S]*?<\/sc-if>/gi, '')
+      .replace(/<div[^>]*>Пройти заново<\/div>/gi, '')
+      .replace(/<sc-if[^>]*value="\{\{ showBack \}\}"[\s\S]*?<\/sc-if>/gi, '')
+      .replace(/<sc-for[^>]*list="\{\{ opts \}\}"[^>]*>[\s\S]*?<\/sc-for>/i, [
+        '<div style="padding:11px 12px;border-radius:13px;background:oklch(94% 0.012 235);font-size:13px;font-weight:700;color:oklch(24% 0.02 250);">Живот / пищеварение</div>',
+        '<div style="padding:11px 12px;border-radius:13px;background:#fff;border:1px solid oklch(90% 0.008 235);font-size:13px;font-weight:700;color:oklch(42% 0.015 245);">Голова</div>',
+        '<div style="padding:11px 12px;border-radius:13px;background:#fff;border:1px solid oklch(90% 0.008 235);font-size:13px;font-weight:700;color:oklch(42% 0.015 245);">Горло / простуда</div>'
+      ].join(''))
+      .replace(/\{\{ surveyTabStyle \}\}/g, 'padding:9px 12px;border-radius:12px;background:#fff;color:oklch(22% 0.02 250);font-weight:700;')
+      .replace(/\{\{ historyTabStyle \}\}/g, 'padding:9px 12px;border-radius:12px;color:oklch(55% 0.012 245);font-weight:700;')
+      .replace(/\{\{ qStep \}\}/g, 'Шаг 1 из 3 · Описание симптома')
+      .replace(/\{\{ progressStyle \}\}/g, 'width:33%;height:100%;background:oklch(55% 0.13 245);border-radius:3px;')
+      .replace(/\{\{ qTitle \}\}/g, 'Где именно беспокоит?')
+      .replace(/\{\{ qHelp \}\}/g, 'Выберите область, чтобы понять первый шаг.')
+      .replace(/<div onclick="\{\{ onBook \}\}"[\s\S]*?<\/div>/gi, '')
+      .replace(/<div onclick="\{\{ onRestart \}\}"[\s\S]*?<\/div>/gi, '')
+      .replace(/\{\{ nextStyle \}\}/g, 'background:oklch(55% 0.13 245);color:#fff;cursor:pointer;')
+      .replace(/\{\{ nextLabel \}\}/g, 'Следующий вопрос →');
+
     // Parse the template and swap the root element. Scripts inserted via
     // DOMParser/replaceWith are inert per spec — re-create each with
     // createElement so they execute, awaiting onload for src scripts to
@@ -174,6 +330,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (window.Babel && typeof window.Babel.transformScriptTags === 'function') {
       window.Babel.transformScriptTags();
     }
+    hydrateLandingDemo();
   } catch (err) {
     setStatus('Error unpacking: ' + err.message);
     console.error('Bundle unpack error:', err);
